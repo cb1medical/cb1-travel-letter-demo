@@ -1,0 +1,491 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Strict CSP: only same-origin resources, plus data: images for the decrypted
+       signature. NO outbound connections of any kind are permitted. -->
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none';" />
+  <meta name="referrer" content="no-referrer" />
+
+  <title>CB1 Medical - Travel Letter (DEMO)</title>
+  <link rel="icon" type="image/png" href="favicon.png" />
+  <style>
+/* =============================================================================
+ * styles.css — CB1 Medical Travel Letter 
+ * Brand colours are also mirrored from config.js at runtime via CSS variables.
+ * ========================================================================== */
+
+:root {
+  --brand: #31453f;
+  --accent: #26332f;
+  --ink: #1c2b26;
+  --muted: #5f6f69;
+  --line: #d9e2dd;
+  --bg: #f4f7f6;
+  --card: #ffffff;
+  --danger: #b3261e;
+  --font: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+/* Ensure the [hidden] attribute always wins over class-based display rules
+   (e.g. .lock-screen { display:flex }). */
+[hidden] { display: none !important; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--font);
+  color: var(--ink);
+  background: var(--bg);
+}
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0);
+  white-space: nowrap; border: 0;
+}
+
+/* ----------------------------- PIN lock screen ---------------------------- */
+.lock-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: linear-gradient(160deg, var(--brand), var(--accent));
+}
+.lock-card {
+  background: var(--card);
+  border-radius: 14px;
+  padding: 2rem;
+  max-width: 380px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+}
+/* White wordmark needs a green backing to be visible on the white card. */
+.lock-logo-band {
+  background: var(--brand);
+  border-radius: 10px;
+  padding: 0.9rem 1rem;
+  margin: 0 auto 1rem;
+  display: inline-block;
+}
+.lock-logo { height: 34px; width: auto; display: block; }
+.lock-card h1 { font-size: 1.35rem; margin: 0.25rem 0 0.25rem; color: var(--accent); }
+.lock-sub { color: var(--muted); font-size: 0.95rem; margin: 0 0 1.25rem; }
+#pin-form { display: flex; flex-direction: column; gap: 0.75rem; }
+#pin-input {
+  padding: 0.75rem;
+  font-size: 1.1rem;
+  text-align: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  letter-spacing: 0.05em;
+}
+#pin-input:focus { outline: 2px solid var(--brand); border-color: var(--brand); }
+#pin-submit {
+  padding: 0.75rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #fff;
+  background: var(--brand);
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+}
+#pin-submit:hover { background: var(--accent); }
+.pin-error { color: var(--danger); font-size: 0.9rem; margin: 0.25rem 0 0; }
+.pin-busy { color: var(--muted); font-size: 0.9rem; margin: 0.25rem 0 0; }
+.lock-privacy { color: var(--muted); font-size: 0.78rem; margin: 1.25rem 0 0; line-height: 1.45; }
+
+/* --------------------------------- App ------------------------------------ */
+.app { padding: 1.5rem; }
+.layout {
+  display: grid;
+  grid-template-columns: minmax(320px, 420px) 1fr;
+  gap: 1.5rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; }
+}
+
+/* Form */
+.form-pane {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 1.25rem;
+  position: sticky;
+  top: 1rem;
+}
+.form-head h2 { margin: 0; font-size: 1.15rem; color: var(--accent); }
+.privacy-inline { color: var(--muted); font-size: 0.8rem; margin: 0.2rem 0 1rem; }
+fieldset { border: 1px solid var(--line); border-radius: 8px; margin: 0 0 1rem; padding: 0.75rem 1rem 1rem; }
+legend { font-weight: 600; color: var(--brand); padding: 0 0.4rem; font-size: 0.9rem; }
+.field { margin-top: 0.6rem; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.25rem; }
+input, textarea, select {
+  width: 100%;
+  padding: 0.55rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-family: var(--font);
+  background: #fff;
+  color: var(--ink);
+}
+input:focus, textarea:focus, select:focus { outline: 2px solid var(--brand); border-color: var(--brand); }
+textarea { resize: vertical; }
+
+.actions { display: flex; gap: 0.6rem; margin-top: 0.5rem; }
+button.primary {
+  flex: 1;
+  background: var(--brand);
+  color: #fff;
+  border: 0;
+  padding: 0.75rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+button.primary:hover { background: var(--accent); }
+button.ghost {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.print-hint { color: var(--muted); font-size: 0.8rem; margin: 0.6rem 0 0; }
+.field-error { color: var(--danger); font-size: 0.8rem; margin: 0.3rem 0 0; font-weight: 600; }
+.req-note { color: var(--danger); font-size: 0.82rem; margin: 0.6rem 0 0; font-weight: 600; }
+.opt { color: var(--muted); font-weight: 400; font-size: 0.8em; }
+button.primary:disabled, button.ghost:disabled { background: #9bb7ac; color: #fff; border-color: #9bb7ac; cursor: not-allowed; }
+
+/* Preview pane */
+.preview-pane { overflow-x: auto; }
+
+/* ------------------------------- The letter -------------------------------- *
+ * The letter is styled as an A4 page both on-screen (preview) and in print.
+ * -------------------------------------------------------------------------- */
+.letter {
+  background: #fff;
+  color: #111;
+  width: 210mm;
+  min-height: 297mm;
+  padding: 0;
+  margin: 0 auto;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+  font-size: 10pt;
+  line-height: 1.38;
+  font-family: var(--font);
+  overflow: hidden;
+}
+/* Full-width dark-green brand band (matches CB1's real letterhead). */
+.letter-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  background: var(--brand);
+  padding: 6mm 18mm;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.letter-logo { height: 38px; width: auto; }
+.letter-clinic { text-align: right; font-size: 8pt; color: #eef2f0; line-height: 1.35; }
+.letter-clinic .clinic-name { font-weight: 700; color: #fff; font-size: 10pt; }
+.letter-content { padding: 8mm 18mm 10mm; }
+.letter-date { margin: 0 0 10px; }
+.letter-recipient { margin-bottom: 9px; }
+.letter-recipient p { margin: 0; }
+.letter-salutation { margin: 0 0 7px; }
+.letter-subject { font-size: 10.5pt; margin: 0 0 8px; color: var(--accent); }
+.letter-body p { margin: 0 0 7px; text-align: justify; }
+.letter-body p.letter-med {
+  margin: 8px 0;
+  padding: 7px 12px;
+  background: #f2f5f4;
+  border-left: 3px solid var(--brand);
+  font-weight: 600;
+  text-align: left;
+}
+.letter-notes { margin: 10px 0; }
+.notes-heading { font-size: 10pt; margin: 0 0 5px; color: var(--accent); }
+.notes-steps { margin: 0 0 7px; padding-left: 18px; }
+.notes-steps li { margin: 0 0 3px; text-align: justify; }
+.notes-disclaimer { font-size: 9pt; color: #444; font-style: italic; text-align: justify; margin: 0; }
+.letter-validity {
+  margin: 9px 0;
+  padding: 7px 11px;
+  background: #f4f7f6;
+  border-left: 3px solid var(--brand);
+  font-size: 9pt;
+  color: #333;
+}
+.letter-validity p { margin: 0 0 4px; }
+.letter-validity p:last-child { margin-bottom: 0; }
+.letter-closing { margin: 12px 0 2px; }
+.letter-sign { margin-top: 2px; }
+.signature-img { max-height: 56px; max-width: 240px; display: block; margin-bottom: 2px; }
+.sign-name { margin: 0; font-weight: 700; }
+.sign-title, .sign-gmc { margin: 0; font-size: 9pt; color: #333; }
+
+/* --------------------------------- Print ---------------------------------- *
+ * Show ONLY the letter. Hide the form, lock screen, and preview chrome.
+ * -------------------------------------------------------------------------- */
+@page { size: A4; margin: 0; }
+
+@media print {
+  html, body { background: #fff; }
+  .lock-screen, .form-pane { display: none !important; }
+  .app { padding: 0; }
+  .layout { display: block; max-width: none; }
+  .preview-pane { overflow: visible; }
+  .letter {
+    width: auto;
+    min-height: auto;
+    margin: 0;
+    box-shadow: none;
+    padding: 0;
+  }
+  .letter-validity, .letter-body p.letter-med {
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+}
+
+  /* ---- Demo watermark (this build only) ---- */
+  .letter { position: relative; }
+  .demo-banner {
+    background: #b3261e; color: #fff; text-align: center;
+    font-weight: 700; font-size: 8.5pt; letter-spacing: 1px;
+    padding: 5px 8px; margin: 0 0 12px; border-radius: 3px;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  .demo-watermark {
+    position: absolute; inset: 0; display: flex;
+    align-items: center; justify-content: center;
+    pointer-events: none; z-index: 5;
+  }
+  .demo-watermark span {
+    transform: rotate(-28deg); font-size: 68px; font-weight: 800;
+    color: rgba(179, 38, 30, 0.13); letter-spacing: 8px; white-space: nowrap;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+
+  </style>
+</head>
+<body>
+
+  <!-- ============================= PIN UNLOCK ============================= -->
+  <section id="lock-screen" class="lock-screen">
+    <div class="lock-card">
+      <div class="lock-logo-band">
+        <img id="lock-logo" class="lock-logo" src="assets/logo.png" alt="CB1 Medical" />
+      </div>
+      <h1>Travel Letter</h1>
+      <p class="lock-demo-note" style="background:#b3261e;color:#fff;font-weight:700;font-size:12px;letter-spacing:.5px;padding:8px 10px;border-radius:4px;margin:0 0 14px;">
+        DEMO BUILD &middot; specimen signatures only &middot; letters are watermarked SAMPLE
+      </p>
+      <p class="lock-sub">Enter the access PIN provided by CB1 Medical to continue. <strong>Demo PIN: cb1-travel-demo</strong></p>
+      <form id="pin-form" autocomplete="off">
+        <label for="pin-input" class="visually-hidden">Access PIN</label>
+        <input id="pin-input" type="password" inputmode="text" autocomplete="off"
+               placeholder="Access PIN" aria-describedby="pin-error" required />
+        <button type="submit" id="pin-submit">Unlock</button>
+        <p id="pin-error" class="pin-error" role="alert" hidden>Incorrect PIN. Please try again.</p>
+        <p id="pin-busy" class="pin-busy" hidden>Checking…</p>
+      </form>
+      <p class="lock-privacy">
+        Nothing you type is saved or sent anywhere. All details stay in this browser tab
+        and are erased when you close it.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============================= MAIN APP ============================= -->
+  <main id="app" class="app" hidden>
+    <div class="layout">
+
+      <!-- -------------------------- FORM -------------------------- -->
+      <section class="form-pane" aria-label="Patient details">
+        <div class="form-head">
+          <h2>Patient &amp; travel details</h2>
+        </div>
+
+        <form id="letter-form" autocomplete="off" novalidate>
+          <fieldset>
+            <legend>Consultant</legend>
+            <div class="field">
+              <label for="careType">Type of care (sets the signing consultant)</label>
+              <select id="careType" name="careType" required></select>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Patient</legend>
+            <div class="grid-2">
+              <div class="field">
+                <label for="firstName">First name</label>
+                <input id="firstName" name="firstName" type="text" autocomplete="off" required />
+              </div>
+              <div class="field">
+                <label for="lastName">Last name</label>
+                <input id="lastName" name="lastName" type="text" autocomplete="off" required />
+              </div>
+            </div>
+            <div class="field">
+              <label for="dob">Date of birth</label>
+              <input id="dob" name="dob" type="date" autocomplete="off" required
+                     aria-describedby="dob-error" />
+              <p id="dob-error" class="field-error" role="alert" hidden></p>
+            </div>
+            <div class="field">
+              <label for="addr1">Address line 1</label>
+              <input id="addr1" name="addr1" type="text" autocomplete="off" required />
+            </div>
+            <div class="field">
+              <label for="addr2">Address line 2 <span class="opt">(optional)</span></label>
+              <input id="addr2" name="addr2" type="text" autocomplete="off" />
+            </div>
+            <div class="grid-2">
+              <div class="field">
+                <label for="city">Town / City</label>
+                <input id="city" name="city" type="text" autocomplete="off" required />
+              </div>
+              <div class="field">
+                <label for="postcode">Postcode</label>
+                <input id="postcode" name="postcode" type="text" autocomplete="off" required />
+              </div>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Prescription</legend>
+            <div class="field">
+              <label for="jurisdiction">Prescription issued in</label>
+              <select id="jurisdiction" name="jurisdiction" required></select>
+            </div>
+            <div class="field">
+              <label for="prescriptionNo">Prescription number</label>
+              <input id="prescriptionNo" name="prescriptionNo" type="text" autocomplete="off" required />
+            </div>
+            <div class="field">
+              <label for="medication">Medication name</label>
+              <input id="medication" name="medication" type="text" autocomplete="off" required />
+            </div>
+            <div class="grid-2">
+              <div class="field">
+                <label for="dose">Dose</label>
+                <input id="dose" name="dose" type="text" autocomplete="off"
+                       placeholder="e.g. 10% THC oil, 1ml" required />
+              </div>
+              <div class="field">
+                <label for="quantity">Quantity carried</label>
+                <input id="quantity" name="quantity" type="text" autocomplete="off"
+                       placeholder="e.g. 30ml" required />
+              </div>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Travel</legend>
+            <div class="field">
+              <label for="destination">Destination</label>
+              <input id="destination" name="destination" type="text" autocomplete="off"
+                     placeholder="Country / location" required />
+            </div>
+            <div class="grid-2">
+              <div class="field">
+                <label for="departureDate">Departure date</label>
+                <input id="departureDate" name="departureDate" type="date" autocomplete="off" required />
+              </div>
+              <div class="field">
+                <label for="returnDate">Return date</label>
+                <input id="returnDate" name="returnDate" type="date" autocomplete="off" required />
+              </div>
+            </div>
+            <p id="date-error" class="field-error" role="alert" hidden></p>
+          </fieldset>
+
+          <div class="actions">
+            <button type="button" id="download-btn" class="primary">Download PDF</button>
+            <button type="button" id="print-btn" class="ghost">Print</button>
+            <button type="button" id="clear-btn" class="ghost">Clear</button>
+          </div>
+          <p class="req-note" id="req-note" hidden>All fields must be completed before you can download.</p>
+          <p class="print-hint" id="pdf-status">
+            <strong>Download PDF</strong> saves the letter straight to your device. Nothing is uploaded.
+          </p>
+        </form>
+      </section>
+
+      <!-- ---------------------- LETTER PREVIEW ---------------------- -->
+      <section class="preview-pane" aria-label="Letter preview">
+        <div id="letter" class="letter">
+          <header class="letter-head">
+            <img id="letter-logo" class="letter-logo" src="assets/logo.png" alt="CB1 Medical" />
+            <div class="letter-clinic" id="letter-clinic"></div>
+          </header>
+
+          <div class="demo-watermark" aria-hidden="true"><span>SAMPLE &middot; DEMO</span></div>
+
+          <div class="letter-content">
+            <div class="demo-banner">SAMPLE &middot; DEMO ONLY &middot; NOT A VALID MEDICAL DOCUMENT</div>
+            <p class="letter-date"><span id="issue-date"></span></p>
+
+            <div class="letter-recipient">
+              <p id="rcpt-name"></p>
+              <p id="rcpt-address"></p>
+            </div>
+
+            <p class="letter-salutation" id="salutation"></p>
+
+            <h3 class="letter-subject" id="subject"></h3>
+
+            <div class="letter-body" id="letter-body"></div>
+
+            <section class="letter-notes" id="letter-notes"></section>
+
+            <div class="letter-validity" id="letter-validity"></div>
+
+            <p class="letter-closing" id="closing"></p>
+
+            <div class="letter-sign">
+              <img id="signature-img" class="signature-img" alt="Doctor's signature" />
+              <p class="sign-name" id="sign-name"></p>
+              <p class="sign-title" id="sign-title"></p>
+              <p class="sign-gmc" id="sign-gmc"></p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- Locally-bundled PDF libraries (no CDN - keeps the no-network guarantee). -->
+  <script src="vendor/jspdf.umd.min.js"></script>
+  <script src="vendor/html2canvas.min.js"></script>
+
+  <!-- Order matters: config + encrypted blob + crypto helpers, then app. -->
+  <script src="config.js"></script>
+  <script src="signature.enc.js"></script>
+  <script src="crypto.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+# Cloudflare Pages headers file.
+# https://developers.cloudflare.com/pages/configuration/headers/
+
+# Never let a browser cache the encrypted signature — so a PIN change takes
+# effect immediately for everyone (Cloudflare's edge cache is purged on deploy).
+/signature.enc.js
+  Cache-Control: no-store
+
+# Defence-in-depth security headers for every page.
+/*
+  Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: no-referrer
+  Permissions-Policy: geolocation=(), microphone=(), camera=(), interest-cohort=()
