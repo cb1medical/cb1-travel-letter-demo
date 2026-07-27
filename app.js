@@ -317,6 +317,14 @@
     // "Note for patient" section (traveller responsibilities + disclaimer).
     const N = L.patientNotes;
     if (N && $("letter-notes")) {
+      // Page 2 annex: title + a line tying this information to the patient's letter.
+      if ($("annex-title")) $("annex-title").textContent = N.heading || "Important information";
+      if ($("annex-for")) {
+        $("annex-for").innerHTML =
+          `This information accompanies the travel letter for ` +
+          `<strong>${esc(d.patientName || "the patient")}</strong>` +
+          (d.issueDate ? ` dated ${esc(d.issueDate)}` : "") + `.`;
+      }
       const steps = (N.steps || []).map(s => `<li>${interpolate(s, d)}</li>`).join("");
       // Disclaimer: combine any parts into ONE paragraph, with a bold lead-in label.
       let discHtml = "";
@@ -327,8 +335,7 @@
         discHtml = `<p class="notes-disclaimer">${lead}${text}</p>`;
       }
       $("letter-notes").innerHTML =
-        `<h4 class="notes-heading">${esc(N.heading || "")}</h4>` +
-        (N.intro ? `<p>${interpolate(N.intro, d)}</p>` : "") +
+        (N.intro ? `<p class="notes-intro">${interpolate(N.intro, d)}</p>` : "") +
         (steps ? `<ol class="notes-steps">${steps}</ol>` : "") +
         discHtml;
     }
@@ -358,6 +365,11 @@
 
   // One-click: render the letter to an A4 PDF and download it instantly.
   // Uses locally-bundled jsPDF + html2canvas - no network access.
+  //
+  // Each ".letter-page" is captured on its OWN A4 page, so page 1 (the signed
+  // letter) and page 2 (the information annex) stay cleanly separated - no
+  // spill-over. If a single sheet somehow exceeds one page it is scaled down
+  // uniformly to fit, never split.
   async function onDownload() {
     renderPreview();
     if (!validateForm()) { setStatus("Please complete all fields first."); return; }
@@ -368,49 +380,46 @@
     btn.textContent = "Generating…";
     setStatus("Generating your PDF…");
 
-    const letter = $("letter");
-    const prevMinHeight = letter.style.minHeight;
+    const pages = Array.from(document.querySelectorAll("#letter .letter-page"));
+    const restore = [];
     try {
-      // Capture at the letter's true content height (not the A4 min-height),
-      // so a short letter is exactly one page with no blank tail.
-      letter.style.minHeight = "auto";
-
-      const scale = 2;
-      const canvas = await html2canvas(letter, {
-        scale,
-        backgroundColor: "#ffffff",
-        useCORS: false,         // everything is same-origin / data: already
-        logging: false,
-      });
-
       const { jsPDF } = window.jspdf;
       const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
       const pageWmm = 210, pageHmm = 297;
 
-      const letterCssW = letter.offsetWidth;         // px that map to 210mm
-      const letterCssH = letter.offsetHeight;        // true content height (px)
-      const pxPerMm = letterCssW / pageWmm;
-      // Always produce a SINGLE page. A travel letter belongs on one page, so
-      // if the content is taller than one A4 page we scale the whole letter
-      // down uniformly (aspect ratio preserved) rather than letting the tail,
-      // e.g. the signature block, spill onto a near-empty second page.
-      const naturalHmm = letterCssH / pxPerMm;      // height at full 210mm width
-      let drawWmm = pageWmm;
-      let drawHmm = naturalHmm;
-      if (naturalHmm > pageHmm) {
-        const fit = pageHmm / naturalHmm;
-        drawWmm = pageWmm * fit;
-        drawHmm = pageHmm;
+      for (let i = 0; i < pages.length; i++) {
+        const el = pages[i];
+        // Capture at true content height (not the A4 min-height) so a short
+        // annex page has a clean white tail rather than a stretched image.
+        restore.push([el, el.style.minHeight]);
+        el.style.minHeight = "auto";
+
+        const canvas = await html2canvas(el, {
+          scale: 2,
+          backgroundColor: "#ffffff",
+          useCORS: false,          // everything is same-origin / data: already
+          logging: false,
+        });
+
+        const pxPerMm = el.offsetWidth / pageWmm;    // css px that map to 210mm
+        const naturalHmm = el.offsetHeight / pxPerMm;
+        let drawWmm = pageWmm, drawHmm = naturalHmm;
+        if (naturalHmm > pageHmm) {                  // never exceed one sheet
+          const fit = pageHmm / naturalHmm;
+          drawWmm = pageWmm * fit;
+          drawHmm = pageHmm;
+        }
+        const offX = (pageWmm - drawWmm) / 2;        // centre horizontally if shrunk
+        if (i > 0) pdf.addPage();
+        pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", offX, 0, drawWmm, drawHmm);
       }
-      const offX = (pageWmm - drawWmm) / 2;         // centre horizontally when shrunk
-      pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", offX, 0, drawWmm, drawHmm);
 
       pdf.save(buildFileName());
       setStatus("✓ PDF downloaded. Nothing was uploaded.");
     } catch (err) {
       setStatus("Sorry - could not generate the PDF. Please try “Print” instead.");
     } finally {
-      letter.style.minHeight = prevMinHeight;
+      restore.forEach(([el, v]) => { el.style.minHeight = v; });
       btn.textContent = original;
       validateForm(); // restore correct enabled/disabled state
     }
