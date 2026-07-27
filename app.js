@@ -382,52 +382,20 @@
       const letterCssW = letter.offsetWidth;         // px that map to 210mm
       const letterCssH = letter.offsetHeight;        // true content height (px)
       const pxPerMm = letterCssW / pageWmm;
-      const pageCssH = pageHmm * pxPerMm;            // one A4 page in css px
-      const cssToCanvas = canvas.height / letterCssH; // ≈ scale
-
-      // Find page breaks at BLOCK boundaries so no text line is ever cut.
-      const letterTop = letter.getBoundingClientRect().top;
-      const blocks = [];
-      const head = letter.querySelector(".letter-head");
-      if (head) blocks.push(head);
-      const content = letter.querySelector(".letter-content");
-      if (content) {
-        content.childNodes.forEach(n => { if (n.nodeType === 1) blocks.push(n); });
+      // Always produce a SINGLE page. A travel letter belongs on one page, so
+      // if the content is taller than one A4 page we scale the whole letter
+      // down uniformly (aspect ratio preserved) rather than letting the tail,
+      // e.g. the signature block, spill onto a near-empty second page.
+      const naturalHmm = letterCssH / pxPerMm;      // height at full 210mm width
+      let drawWmm = pageWmm;
+      let drawHmm = naturalHmm;
+      if (naturalHmm > pageHmm) {
+        const fit = pageHmm / naturalHmm;
+        drawWmm = pageWmm * fit;
+        drawHmm = pageHmm;
       }
-      const cuts = [0];
-      let pageStart = 0;
-      for (const b of blocks) {
-        const r = b.getBoundingClientRect();
-        const top = r.top - letterTop;
-        const bottom = top + r.height;
-        // If this block would spill past the current page, start a new page at its top.
-        if (bottom - pageStart > pageCssH && top > pageStart + 1) {
-          pageStart = top;
-          cuts.push(top);
-        }
-      }
-      cuts.push(letterCssH);
-
-      // Slice the rendered canvas at those boundaries - one crop per page.
-      for (let i = 0; i < cuts.length - 1; i++) {
-        const segTop = cuts[i];
-        const segBottom = cuts[i + 1];
-        const syPx = Math.round(segTop * cssToCanvas);
-        const shPx = Math.round((segBottom - segTop) * cssToCanvas);
-        if (shPx <= 0) continue;
-
-        const seg = document.createElement("canvas");
-        seg.width = canvas.width;
-        seg.height = shPx;
-        const ctx = seg.getContext("2d");
-        ctx.fillStyle = "#ffffff";
-        ctx.fillRect(0, 0, seg.width, seg.height);
-        ctx.drawImage(canvas, 0, syPx, canvas.width, shPx, 0, 0, canvas.width, shPx);
-
-        const segHmm = (segBottom - segTop) / pxPerMm;
-        if (i > 0) pdf.addPage();
-        pdf.addImage(seg.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, pageWmm, segHmm);
-      }
+      const offX = (pageWmm - drawWmm) / 2;         // centre horizontally when shrunk
+      pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", offX, 0, drawWmm, drawHmm);
 
       pdf.save(buildFileName());
       setStatus("✓ PDF downloaded. Nothing was uploaded.");
