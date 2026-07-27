@@ -322,7 +322,7 @@
         `<h4 class="notes-heading">${esc(N.heading || "")}</h4>` +
         (N.intro ? `<p>${interpolate(N.intro, d)}</p>` : "") +
         (steps ? `<ol class="notes-steps">${steps}</ol>` : "") +
-        (N.disclaimer ? `<p class="notes-disclaimer">${interpolate(N.disclaimer, d)}</p>` : "");
+        (N.disclaimer ? (Array.isArray(N.disclaimer) ? N.disclaimer : [N.disclaimer]).map(x => `<p class="notes-disclaimer">${interpolate(x, d)}</p>`).join("") : "");
     }
 
     // Validity box: issue date + travel validity window.
