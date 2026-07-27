@@ -318,11 +318,19 @@
     const N = L.patientNotes;
     if (N && $("letter-notes")) {
       const steps = (N.steps || []).map(s => `<li>${interpolate(s, d)}</li>`).join("");
+      // Disclaimer: combine any parts into ONE paragraph, with a bold lead-in label.
+      let discHtml = "";
+      if (N.disclaimer) {
+        const parts = Array.isArray(N.disclaimer) ? N.disclaimer : [N.disclaimer];
+        const text = parts.map(x => interpolate(x, d)).join(" ");
+        const lead = N.disclaimerHeading ? `<strong>${esc(N.disclaimerHeading)}.</strong> ` : "";
+        discHtml = `<p class="notes-disclaimer">${lead}${text}</p>`;
+      }
       $("letter-notes").innerHTML =
         `<h4 class="notes-heading">${esc(N.heading || "")}</h4>` +
         (N.intro ? `<p>${interpolate(N.intro, d)}</p>` : "") +
         (steps ? `<ol class="notes-steps">${steps}</ol>` : "") +
-        (N.disclaimer ? (Array.isArray(N.disclaimer) ? N.disclaimer : [N.disclaimer]).map(x => `<p class="notes-disclaimer">${interpolate(x, d)}</p>`).join("") : "");
+        discHtml;
     }
 
     // Validity box: issue date + travel validity window.

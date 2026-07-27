@@ -99,9 +99,10 @@ const CONFIG = {
         "Confirm with your airline their policy for carrying prescribed medication, including cannabis-based products.",
         "Travel with no more medication than you need for the trip, and keep this letter together with a copy of your prescription and your passport.",
       ],
+      disclaimerHeading: "Disclaimer",
       disclaimer: [
-        "While {{clinicName}} provides this letter to support your travel, acceptance is determined solely by the laws of your destination and any transit countries and by airline policy. {{clinicName}} cannot accept responsibility for medication that is confiscated, or for any legal issues arising, outside the United Kingdom.",
-        "Because this letter is completed using the information you enter, you are responsible for its accuracy. Airlines and border officials may compare it against your prescription and medication and may refuse it if the details do not match. {{clinicName}} does not accept liability for a letter that contains inaccurate or incomplete information.",
+        "While {{clinicName}} provides this letter to support your travel, acceptance is determined solely by the laws of your destination and any transit countries and by airline policy, and {{clinicName}} cannot accept responsibility for medication that is confiscated, or for any legal issues arising, outside the United Kingdom.",
+        "Because this letter is completed using the information you enter, you are responsible for its accuracy: airlines and border officials may compare it against your prescription and medication and may refuse it if the details do not match, and {{clinicName}} does not accept liability for a letter that contains inaccurate or incomplete information.",
       ],
     },
 
