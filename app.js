@@ -210,6 +210,7 @@
       $("app").hidden = false;
       initForm();
       renderPreview();
+      fitPreview();
     } catch (err) {
       // Wrong PIN (AES-GCM auth failure) or malformed blob.
       signatures = {};
@@ -302,6 +303,9 @@
       $("qty-confirm").hidden = true;
     });
 
+    // Keep the pinned preview scaled to fit the window.
+    window.addEventListener("resize", fitPreview);
+
     // Start with generation disabled until a valid 18+ DOB is entered.
     $("download-btn").disabled = true;
     $("print-btn").disabled = true;
@@ -334,7 +338,7 @@
       jurisdiction: v("jurisdiction"),
       prescriptionNo: v("prescriptionNo"),
       medication: buildProduct(),
-      quantity: [v("quantityNum"), v("quantityUnit")].filter(Boolean).join(" "),
+      quantity: v("quantityNum") ? `${v("quantityNum")} ${v("quantityUnit")}` : "",
       destination: (function () {
         const country = v("destinationCountry");
         const city = v("destinationCity");
@@ -348,11 +352,29 @@
     };
   }
 
+  // Friendly placeholders shown in the live preview while a field is still empty,
+  // so the patient can see what belongs where.
+  const PLACEHOLDERS = {
+    patientName: "[patient name]",
+    patientDob: "[date of birth]",
+    patientAddress: "[home address]",
+    jurisdiction: "[where issued]",
+    destination: "[destination]",
+    departureDate: "[departure date]",
+    returnDate: "[return date]",
+    prescriptionNo: "[prescription number]",
+    medication: "[product]",
+    quantity: "[quantity]",
+  };
+
   // Replace {{placeholders}} in a template string, HTML-escaping each value.
+  // Empty values fall back to a readable placeholder so blanks never appear.
   function interpolate(template, data) {
-    return template.replace(/\{\{(\w+)\}\}/g, (_, key) =>
-      esc(data[key] != null ? data[key] : `[${key}]`)
-    );
+    return template.replace(/\{\{(\w+)\}\}/g, (_, key) => {
+      const val = data[key];
+      if (val == null || val === "") return esc(PLACEHOLDERS[key] || `[${key}]`);
+      return esc(val);
+    });
   }
 
   /* --------------------------- render preview --------------------------- */
@@ -486,6 +508,20 @@
     return Number.isFinite(n) && t != null && n > t;
   }
 
+  // Scale the on-screen letter so page 1 fits the viewport height, keeping the
+  // pinned preview fully visible while filling the form. Uses CSS `zoom`, which
+  // is reset to full size during PDF capture, so the download is unaffected.
+  function fitPreview() {
+    const letter = $("letter");
+    const page1 = $("letter-page-1");
+    if (!letter || !page1) return;
+    letter.style.zoom = "1";                       // measure natural height
+    const avail = window.innerHeight - 40;         // sticky offset + margins
+    const h = page1.offsetHeight || 1;
+    const z = Math.max(0.55, Math.min(1, avail / h));
+    letter.style.zoom = String(z);
+  }
+
   /* ------------------------------ actions ------------------------------- */
 
   // One-click: render the letter to an A4 PDF and download it instantly.
@@ -518,6 +554,10 @@
 
     const pages = Array.from(document.querySelectorAll("#letter .letter-page"));
     const restore = [];
+    // Capture at full size: the on-screen preview zoom must not affect the PDF.
+    const letterEl = $("letter");
+    const prevZoom = letterEl ? letterEl.style.zoom : "";
+    if (letterEl) letterEl.style.zoom = "1";
     try {
       const { jsPDF } = window.jspdf;
       const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
@@ -556,6 +596,7 @@
       setStatus("Sorry - could not generate the PDF. Please try “Print” instead.");
     } finally {
       restore.forEach(([el, v]) => { el.style.minHeight = v; });
+      if (letterEl) letterEl.style.zoom = prevZoom;
       btn.textContent = original;
       validateForm(); // restore correct enabled/disabled state
     }

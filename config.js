@@ -102,7 +102,7 @@ const CONFIG = {
 
     // Main body - one string per paragraph.
     bodyParagraphs: [
-      "I am writing on behalf of my patient, {{patientName}} (date of birth {{patientDob}}), of {{patientAddress}}, who is under the care of {{clinicName}} and has been prescribed medical cannabis as an essential part of the ongoing management of their medical condition.",
+      "I am writing on behalf of my patient, {{patientName}} (date of birth {{patientDob}}), of {{patientAddress}}. {{patientName}} is under the care of {{clinicName}} and has been prescribed medical cannabis as an essential part of the ongoing management of their medical condition.",
 
       "{{patientName}} intends to travel to {{destination}}, departing on {{departureDate}} and returning on {{returnDate}}. For the duration of this trip they will carry the following prescribed medication for their own personal medical use:",
 

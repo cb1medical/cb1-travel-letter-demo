@@ -126,8 +126,6 @@ html, body {
   border: 1px solid var(--line);
   border-radius: 12px;
   padding: 1.25rem;
-  position: sticky;
-  top: 1rem;
 }
 .form-head h2 { margin: 0; font-size: 1.15rem; color: var(--accent); }
 .privacy-inline { color: var(--muted); font-size: 0.8rem; margin: 0.2rem 0 1rem; }
@@ -191,8 +189,19 @@ button.ghost {
 .opt { color: var(--muted); font-weight: 400; font-size: 0.8em; }
 button.primary:disabled, button.ghost:disabled { background: #9bb7ac; color: #fff; border-color: #9bb7ac; cursor: not-allowed; }
 
-/* Preview pane */
-.preview-pane { overflow-x: auto; }
+/* Preview pane: pinned beside the form and scaled to fit, so the letter stays
+ * visible while filling in the details (the on-screen scale never affects the
+ * generated PDF - it is reset to full size during capture). */
+.preview-pane {
+  overflow: auto;
+  position: sticky;
+  top: 1rem;
+  align-self: start;
+  max-height: calc(100vh - 2rem);
+}
+@media (max-width: 900px) {
+  .preview-pane { position: static; max-height: none; }
+}
 
 /* ------------------------------- The letter -------------------------------- *
  * The letter is styled as an A4 page both on-screen (preview) and in print.
