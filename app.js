@@ -84,6 +84,11 @@
 
   // Strength usually looks like T20 or T25:C25 (soft check only, never blocks).
   const STRENGTH_RE = /^T\d{1,4}(:C\d{1,4})?$/i;
+  // A name must contain at least one letter (blocks pure numbers/symbols).
+  const NAME_RE = /\p{L}/u;
+  // Loose UK postcode shape, used only for a soft, non-blocking hint.
+  const UK_POSTCODE_RE = /^[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}$/i;
+  const MAX_TRAVEL_YEARS = 2;   // travel dates must be within this many years
 
   // Build the product name from the guided parts, e.g. "Somai T25:C25 Oil 30ml".
   function buildProduct() {
@@ -108,22 +113,40 @@
       dobMsg = "Date of birth cannot be in the future.";
     } else if (iso && age !== null && age < MIN_AGE) {
       dobMsg = `Patient must be ${MIN_AGE} or over. A travel letter cannot be generated.`;
+    } else if (iso && age !== null && age > 120) {
+      dobMsg = "Please check the date of birth.";
     }
     if (dobMsg) { dobErr.textContent = dobMsg; dobErr.hidden = false; }
     else { dobErr.hidden = true; }
-    const ageOk = age !== null && age >= MIN_AGE;
+    const ageOk = age !== null && age >= MIN_AGE && age <= 120;
 
-    // --- Travel date order ---
+    // --- Travel dates: order + within a sane window (today .. +2 years) ---
     const dep = ($("departureDate") && $("departureDate").value) || "";
     const ret = ($("returnDate") && $("returnDate").value) || "";
     const dateErr = $("date-error");
+    const todayStr = todayISO();
+    const maxTravelStr = addYearsISO(todayStr, MAX_TRAVEL_YEARS);
     let dateMsg = "";
     if (dep && ret && ret < dep) {
       dateMsg = "Return date cannot be before the departure date.";
+    } else if ((dep && (dep < todayStr || dep > maxTravelStr)) ||
+               (ret && (ret < todayStr || ret > maxTravelStr))) {
+      dateMsg = "Travel dates must be between today and two years from now.";
     }
     if (dateMsg) { dateErr.textContent = dateMsg; dateErr.hidden = false; }
     else { dateErr.hidden = true; }
     const datesOk = !dateMsg;
+
+    // --- Names must contain at least one letter ---
+    const fn = ($("firstName") && $("firstName").value.trim()) || "";
+    const ln = ($("lastName") && $("lastName").value.trim()) || "";
+    const nameErr = $("name-error");
+    let nameMsg = "";
+    if ((fn && !NAME_RE.test(fn)) || (ln && !NAME_RE.test(ln))) {
+      nameMsg = "Enter the patient's name using letters.";
+    }
+    if (nameErr) { nameErr.textContent = nameMsg; nameErr.hidden = !nameMsg; }
+    const nameOk = !nameMsg;
 
     // --- All required fields present ---
     const allFilled = REQUIRED_FIELDS.every(id => {
@@ -145,7 +168,7 @@
     // --- Patient confirmation ticked ---
     const confirmed = !!($("confirm-details") && $("confirm-details").checked);
 
-    const ok = allFilled && ageOk && datesOk && qtyOk && confirmed;
+    const ok = allFilled && ageOk && datesOk && qtyOk && confirmed && nameOk;
 
     ["download-btn", "print-btn"].forEach(id => {
       const b = $(id);
@@ -176,6 +199,19 @@
     const m = String(dt.getMonth() + 1).padStart(2, "0");
     const d = String(dt.getDate()).padStart(2, "0");
     return formatDate(`${y}-${m}-${d}`);
+  }
+
+  // Today's date as yyyy-mm-dd (local, no network).
+  function todayISO() {
+    const n = new Date();
+    return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-${String(n.getDate()).padStart(2, "0")}`;
+  }
+
+  // Add whole years to an ISO date, returning yyyy-mm-dd.
+  function addYearsISO(iso, years) {
+    const p = iso.split("-").map(Number);
+    const d = new Date(p[0] + years, p[1] - 1, p[2]);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   }
 
   function $(id) { return document.getElementById(id); }
@@ -266,6 +302,14 @@
     if ($("prodStrength") && CONFIG.product && CONFIG.product.strengthHint) {
       $("prodStrength").placeholder = CONFIG.product.strengthHint;
     }
+
+    // Sane date bounds so the pickers cannot produce absurd years.
+    const t = todayISO();
+    if ($("dob")) { $("dob").min = "1900-01-01"; $("dob").max = t; }
+    const maxTravel = addYearsISO(t, MAX_TRAVEL_YEARS);
+    ["departureDate", "returnDate"].forEach(id => {
+      const e = $(id); if (e) { e.min = t; e.max = maxTravel; }
+    });
 
     // Populate the unit dropdowns (pack size + quantity carried) from config.
     const units = (CONFIG.quantity && CONFIG.quantity.units) || ["ml", "g"];
@@ -485,6 +529,16 @@
         sHint.textContent = "Strength usually looks like T20 or T25:C25. You can still continue.";
         sHint.hidden = false;
       } else { sHint.hidden = true; }
+    }
+
+    // Postcode format nudge (soft, UK shape; never blocks).
+    const pcEl = $("postcode"), pcHint = $("postcode-hint");
+    if (pcEl && pcHint) {
+      const pv = pcEl.value.trim();
+      if (pv && !UK_POSTCODE_RE.test(pv)) {
+        pcHint.textContent = "This does not look like a UK postcode. Please double-check.";
+        pcHint.hidden = false;
+      } else { pcHint.hidden = true; }
     }
 
     // Quantity soft warning; also clears any stale over-quantity prompt.

@@ -398,6 +398,7 @@ button.primary:disabled, button.ghost:disabled { background: #9bb7ac; color: #ff
                 <input id="lastName" name="lastName" type="text" autocomplete="off" required />
               </div>
             </div>
+            <p id="name-error" class="field-error" role="alert" hidden></p>
             <div class="field">
               <label for="dob">Date of birth</label>
               <input id="dob" name="dob" type="date" autocomplete="off" required
@@ -419,7 +420,9 @@ button.primary:disabled, button.ghost:disabled { background: #9bb7ac; color: #ff
               </div>
               <div class="field">
                 <label for="postcode">Postcode</label>
-                <input id="postcode" name="postcode" type="text" autocomplete="off" required />
+                <input id="postcode" name="postcode" type="text" autocomplete="off" required
+                       aria-describedby="postcode-hint" />
+                <p id="postcode-hint" class="field-help" hidden></p>
               </div>
             </div>
           </fieldset>
@@ -610,9 +613,9 @@ button.primary:disabled, button.ghost:disabled { background: #9bb7ac; color: #ff
   <!-- Order matters: config + encrypted blob + crypto helpers, then app. -->
   <!-- ?v= cache-buster: BUMP this on every deploy so browsers never mix an old
        app.js with a new config.js (which produced blank/duplicate pages). -->
-  <script src="config.js?v=20260818a"></script>
-  <script src="signature.enc.js?v=20260818a"></script>
-  <script src="crypto.js?v=20260818a"></script>
-  <script src="app.js?v=20260818a"></script>
+  <script src="config.js?v=20260818b"></script>
+  <script src="signature.enc.js?v=20260818b"></script>
+  <script src="crypto.js?v=20260818b"></script>
+  <script src="app.js?v=20260818b"></script>
 </body>
 </html>
