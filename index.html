@@ -608,9 +608,11 @@ button.primary:disabled, button.ghost:disabled { background: #9bb7ac; color: #ff
   <script src="vendor/html2canvas.min.js"></script>
 
   <!-- Order matters: config + encrypted blob + crypto helpers, then app. -->
-  <script src="config.js"></script>
-  <script src="signature.enc.js"></script>
-  <script src="crypto.js"></script>
-  <script src="app.js"></script>
+  <!-- ?v= cache-buster: BUMP this on every deploy so browsers never mix an old
+       app.js with a new config.js (which produced blank/duplicate pages). -->
+  <script src="config.js?v=20260818a"></script>
+  <script src="signature.enc.js?v=20260818a"></script>
+  <script src="crypto.js?v=20260818a"></script>
+  <script src="app.js?v=20260818a"></script>
 </body>
 </html>
