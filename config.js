@@ -63,15 +63,40 @@ const CONFIG = {
     "Isle of Man", "Jersey", "Guernsey",
   ],
 
+  /* ---- Product entry --------------------------------------------------- *
+   * We do NOT hold a product list. The patient builds the product name from
+   * guided parts (brand, strength, name, form, size) so the STRUCTURE is
+   * consistent, e.g. "Somai T25:C25 Oil 30ml". `forms` populates the Form
+   * dropdown; `strengthHint` is the placeholder shown on the Strength field.
+   * ---------------------------------------------------------------------- */
+  product: {
+    forms: ["Flower", "Oil", "Cartridge", "Pastilles", "Capsules", "Spray", "Other"],
+    strengthHint: "e.g. T20 or T25:C25",
+  },
+
+  /* ---- Quantity carried ------------------------------------------------ *
+   * Whole numbers only, chosen unit. `warnAbove` triggers a soft "does this
+   * look right?" prompt (never blocks) when the number looks unusually large.
+   * ---------------------------------------------------------------------- */
+  quantity: {
+    units: ["ml", "g", "units"],
+    warnAbove: { ml: 300, g: 200, units: 20 },
+  },
+
   /* ---- Letter wording -------------------------------------------------- *
    * Available placeholders (filled from the form automatically):
    *   {{patientName}}    {{patientDob}}      {{patientAddress}}
    *   {{jurisdiction}}   {{destination}}     {{departureDate}}
    *   {{returnDate}}     {{prescriptionNo}}  {{medication}}
-   *   {{dose}}           {{quantity}}        {{issueDate}}
-   *   {{clinicName}}     {{doctorName}}
+   *   {{quantity}}       {{issueDate}}       {{clinicName}}
+   *   {{doctorName}}
+   * ({{medication}} is the product name assembled from the guided fields;
+   *  {{destination}} is "Country (City)" or just "Country".)
    * ---------------------------------------------------------------------- */
   letter: {
+    // Days added to the return date to compute the letter's expiry date.
+    expiryBufferDays: 7,
+
     subject: "Re: Medical cannabis prescription for {{patientName}}'s travel",
     salutation: "To whom it may concern,",
 
@@ -81,8 +106,9 @@ const CONFIG = {
 
       "{{patientName}} intends to travel to {{destination}}, departing on {{departureDate}} and returning on {{returnDate}}. For the duration of this trip they will carry the following prescribed medication for their own personal medical use:",
 
-      // Medication detail line (rendered as an emphasised block).
-      "{{medication}}, {{dose}}. Quantity carried: {{quantity}}. Prescription reference: {{prescriptionNo}}.||MED",
+      // Medication detail line (rendered as an emphasised block). The product
+      // name already carries the strength, so there is no separate dose.
+      "{{medication}}. Quantity carried: {{quantity}}. Prescription reference: {{prescriptionNo}}.||MED",
 
       "This medication is legally prescribed to the patient in {{jurisdiction}}, United Kingdom, under the Misuse of Drugs Regulations 2001. Consistent access to this treatment is central to maintaining the patient's health, and any interruption during travel risks a deterioration of their condition.",
 
@@ -94,7 +120,7 @@ const CONFIG = {
       heading: "Important information for the patient",
       intro: "This prescription is valid only within the jurisdiction in which it was issued ({{jurisdiction}}). It is your responsibility to check the specific regulations for your destination before you travel. You should:",
       steps: [
-        "Check that every detail on this letter is correct before you rely on it, in particular the prescription reference, medication, dose and quantity. This letter is generated from the information you enter, and the details must match your actual prescription exactly.",
+        "Check that every detail on this letter is correct before you rely on it, in particular the product, the quantity carried and the prescription reference. This letter is generated from the information you enter, and the details must match your actual prescription exactly.",
         "Contact the embassy or consulate of your destination country, and of any transit countries, for guidance on importing prescribed medical cannabis.",
         "Confirm with your airline their policy for carrying prescribed medication, including cannabis-based products.",
         "Travel with no more medication than you need for the trip, and keep this letter together with a copy of your prescription and your passport.",

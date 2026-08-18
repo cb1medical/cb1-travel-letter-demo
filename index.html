@@ -135,7 +135,22 @@ fieldset { border: 1px solid var(--line); border-radius: 8px; margin: 0 0 1rem; 
 legend { font-weight: 600; color: var(--brand); padding: 0 0.4rem; font-size: 0.9rem; }
 .field { margin-top: 0.6rem; }
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+.grid-3 { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 0.75rem; }
 label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.25rem; }
+.field-help { color: var(--muted); font-size: 0.8rem; margin: 0.35rem 0 0; }
+.field-warn { color: #a15c00; font-size: 0.8rem; margin: 0.3rem 0 0; font-weight: 600; }
+.product-preview { color: var(--brand); font-weight: 600; }
+.confirm-row {
+  display: flex; align-items: flex-start; gap: 0.5rem;
+  font-weight: 500; font-size: 0.9rem; margin: 1rem 0 0.25rem; cursor: pointer;
+}
+.confirm-row input { margin-top: 0.15rem; width: auto; flex: 0 0 auto; }
+.qty-confirm {
+  border: 1px solid #e6c58a; background: #fff8ec; border-radius: 8px;
+  padding: 0.75rem; margin: 0.6rem 0;
+}
+.qty-confirm-msg { color: #8a5a00; font-weight: 600; font-size: 0.9rem; margin: 0 0 0.5rem; }
+.qty-confirm-actions { display: flex; gap: 0.6rem; }
 input, textarea, select {
   width: 100%;
   padding: 0.55rem 0.6rem;
@@ -337,8 +352,8 @@ button.primary:disabled, button.ghost:disabled { background: #9bb7ac; color: #ff
         <p id="pin-busy" class="pin-busy" hidden>Checking…</p>
       </form>
       <p class="lock-privacy">
-        Nothing you type is saved or sent anywhere. All details stay in this browser tab
-        and are erased when you close it.
+        No patient information is transmitted to CB1 Medical or stored on our servers.
+        All information remains on your device and is deleted when you close this browser tab.
       </p>
     </div>
   </section>
@@ -410,30 +425,72 @@ button.primary:disabled, button.ghost:disabled { background: #9bb7ac; color: #ff
               <label for="prescriptionNo">Prescription number</label>
               <input id="prescriptionNo" name="prescriptionNo" type="text" autocomplete="off" required />
             </div>
-            <div class="field">
-              <label for="medication">Medication name</label>
-              <input id="medication" name="medication" type="text" autocomplete="off" required />
-            </div>
+
+            <p class="field-help">Build the product exactly as it appears on your prescription.</p>
             <div class="grid-2">
               <div class="field">
-                <label for="dose">Dose</label>
-                <input id="dose" name="dose" type="text" autocomplete="off"
-                       placeholder="e.g. 10% THC oil, 1ml" required />
+                <label for="prodBrand">Brand</label>
+                <input id="prodBrand" name="prodBrand" type="text" autocomplete="off"
+                       placeholder="e.g. Somai" required />
               </div>
               <div class="field">
-                <label for="quantity">Quantity carried</label>
-                <input id="quantity" name="quantity" type="text" autocomplete="off"
-                       placeholder="e.g. 30ml" required />
+                <label for="prodStrength">Strength</label>
+                <input id="prodStrength" name="prodStrength" type="text" autocomplete="off"
+                       placeholder="e.g. T25:C25" required aria-describedby="strength-hint" />
+                <p id="strength-hint" class="field-help" hidden></p>
+              </div>
+            </div>
+            <div class="field">
+              <label for="prodName">Product name <span class="opt">(optional)</span></label>
+              <input id="prodName" name="prodName" type="text" autocomplete="off"
+                     placeholder="e.g. Blue Dream" />
+            </div>
+            <div class="grid-3">
+              <div class="field">
+                <label for="prodForm">Form</label>
+                <select id="prodForm" name="prodForm" required></select>
+              </div>
+              <div class="field">
+                <label for="prodSize">Pack size</label>
+                <input id="prodSize" name="prodSize" type="number" min="1" step="1"
+                       inputmode="numeric" autocomplete="off" placeholder="e.g. 30" required />
+              </div>
+              <div class="field">
+                <label for="prodSizeUnit">Unit</label>
+                <select id="prodSizeUnit" name="prodSizeUnit" required></select>
+              </div>
+            </div>
+            <p class="field-help">Builds: <span id="product-preview" class="product-preview">-</span></p>
+
+            <div class="grid-2">
+              <div class="field">
+                <label for="quantityNum">Quantity carried (total for the trip)</label>
+                <input id="quantityNum" name="quantityNum" type="number" min="1" step="1"
+                       inputmode="numeric" autocomplete="off" placeholder="e.g. 90"
+                       required aria-describedby="quantity-error quantity-warn" />
+                <p id="quantity-error" class="field-error" role="alert" hidden></p>
+                <p id="quantity-warn" class="field-warn" role="alert" hidden></p>
+              </div>
+              <div class="field">
+                <label for="quantityUnit">Unit</label>
+                <select id="quantityUnit" name="quantityUnit" required></select>
               </div>
             </div>
           </fieldset>
 
           <fieldset>
             <legend>Travel</legend>
-            <div class="field">
-              <label for="destination">Destination</label>
-              <input id="destination" name="destination" type="text" autocomplete="off"
-                     placeholder="Country / location" required />
+            <div class="grid-2">
+              <div class="field">
+                <label for="destinationCountry">Destination country</label>
+                <input id="destinationCountry" name="destinationCountry" type="text" autocomplete="off"
+                       placeholder="e.g. France" required />
+              </div>
+              <div class="field">
+                <label for="destinationCity">City / region <span class="opt">(optional)</span></label>
+                <input id="destinationCity" name="destinationCity" type="text" autocomplete="off"
+                       placeholder="e.g. Paris" />
+              </div>
             </div>
             <div class="grid-2">
               <div class="field">
@@ -448,12 +505,25 @@ button.primary:disabled, button.ghost:disabled { background: #9bb7ac; color: #ff
             <p id="date-error" class="field-error" role="alert" hidden></p>
           </fieldset>
 
+          <label class="confirm-row" for="confirm-details">
+            <input id="confirm-details" name="confirm-details" type="checkbox" />
+            <span>I confirm these details match my prescription.</span>
+          </label>
+
+          <div id="qty-confirm" class="qty-confirm" hidden>
+            <p class="qty-confirm-msg">Quantity looks unusually high. Please check it is correct.</p>
+            <div class="qty-confirm-actions">
+              <button type="button" id="qty-cancel" class="ghost">Cancel</button>
+              <button type="button" id="qty-continue" class="primary">Continue anyway</button>
+            </div>
+          </div>
+
           <div class="actions">
             <button type="button" id="download-btn" class="primary">Download PDF</button>
             <button type="button" id="print-btn" class="ghost">Print</button>
             <button type="button" id="clear-btn" class="ghost">Clear</button>
           </div>
-          <p class="req-note" id="req-note" hidden>All fields must be completed before you can download.</p>
+          <p class="req-note" id="req-note" hidden>All fields must be completed, and the confirmation ticked, before you can download.</p>
           <p class="print-hint" id="pdf-status">
             <strong>Download PDF</strong> saves the letter straight to your device. Nothing is uploaded.
           </p>

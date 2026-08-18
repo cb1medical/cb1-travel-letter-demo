@@ -76,9 +76,24 @@
   const REQUIRED_FIELDS = [
     "firstName", "lastName", "dob",
     "addr1", "city", "postcode",
-    "jurisdiction", "prescriptionNo", "medication", "dose", "quantity",
-    "destination", "departureDate", "returnDate",
+    "jurisdiction", "prescriptionNo",
+    "prodBrand", "prodStrength", "prodForm", "prodSize",
+    "quantityNum",
+    "destinationCountry", "departureDate", "returnDate",
   ];
+
+  // Strength usually looks like T20 or T25:C25 (soft check only, never blocks).
+  const STRENGTH_RE = /^T\d{1,4}(:C\d{1,4})?$/i;
+
+  // Build the product name from the guided parts, e.g. "Somai T25:C25 Oil 30ml".
+  function buildProduct() {
+    const v = id => ($(id) ? $(id).value.trim() : "");
+    const size = v("prodSize");
+    const unit = v("prodSizeUnit") || "";
+    const sizeUnit = size ? (unit === "units" ? `${size} units` : `${size}${unit}`) : "";
+    return [v("prodBrand"), v("prodStrength"), v("prodName"), v("prodForm"), sizeUnit]
+      .filter(Boolean).join(" ");
+  }
 
   // Validate the whole form. Returns true only when EVERY required field is
   // filled, the patient is 18+, and the travel dates are sane. Updates the
@@ -116,7 +131,21 @@
       return el && String(el.value).trim() !== "";
     });
 
-    const ok = allFilled && ageOk && datesOk;
+    // --- Quantity must be a whole number > 0 ---
+    const qtyRaw = ($("quantityNum") && $("quantityNum").value.trim()) || "";
+    const qtyNum = Number(qtyRaw);
+    const qtyErr = $("quantity-error");
+    let qtyMsg = "";
+    if (qtyRaw && (!Number.isInteger(qtyNum) || qtyNum < 1)) {
+      qtyMsg = "Enter the quantity as a whole number (e.g. 30).";
+    }
+    if (qtyErr) { qtyErr.textContent = qtyMsg; qtyErr.hidden = !qtyMsg; }
+    const qtyOk = !qtyMsg;
+
+    // --- Patient confirmation ticked ---
+    const confirmed = !!($("confirm-details") && $("confirm-details").checked);
+
+    const ok = allFilled && ageOk && datesOk && qtyOk && confirmed;
 
     ["download-btn", "print-btn"].forEach(id => {
       const b = $(id);
@@ -133,6 +162,20 @@
     const months = ["January","February","March","April","May","June",
                     "July","August","September","October","November","December"];
     return `${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`;
+  }
+
+  // Add `days` to an ISO date (yyyy-mm-dd) and return it formatted, e.g.
+  // addDaysFormatted("2026-07-31", 7) -> "7 August 2026". Empty in -> "".
+  function addDaysFormatted(iso, days) {
+    if (!iso) return "";
+    const parts = iso.split("-").map(Number);
+    if (parts.length !== 3 || parts.some(isNaN)) return "";
+    const dt = new Date(parts[0], parts[1] - 1, parts[2]);
+    dt.setDate(dt.getDate() + (days || 0));
+    const y = dt.getFullYear();
+    const m = String(dt.getMonth() + 1).padStart(2, "0");
+    const d = String(dt.getDate()).padStart(2, "0");
+    return formatDate(`${y}-${m}-${d}`);
   }
 
   function $(id) { return document.getElementById(id); }
@@ -207,6 +250,35 @@
       });
     }
 
+    // Populate the product Form dropdown (generic forms, not a product list).
+    const formSel = $("prodForm");
+    if (formSel && formSel.options.length === 0) {
+      const first = document.createElement("option");
+      first.value = ""; first.textContent = "Select…"; first.disabled = true; first.selected = true;
+      formSel.appendChild(first);
+      ((CONFIG.product && CONFIG.product.forms) || []).forEach(f => {
+        const o = document.createElement("option");
+        o.value = f; o.textContent = f;
+        formSel.appendChild(o);
+      });
+    }
+    if ($("prodStrength") && CONFIG.product && CONFIG.product.strengthHint) {
+      $("prodStrength").placeholder = CONFIG.product.strengthHint;
+    }
+
+    // Populate the unit dropdowns (pack size + quantity carried) from config.
+    const units = (CONFIG.quantity && CONFIG.quantity.units) || ["ml", "g"];
+    ["prodSizeUnit", "quantityUnit"].forEach(id => {
+      const u = $(id);
+      if (u && u.options.length === 0) {
+        units.forEach(unit => {
+          const o = document.createElement("option");
+          o.value = unit; o.textContent = unit;
+          u.appendChild(o);
+        });
+      }
+    });
+
     // Apply brand colours from config (kept in sync with config.js).
     if (CONFIG.brand) {
       const root = document.documentElement.style;
@@ -220,6 +292,15 @@
     $("download-btn").addEventListener("click", onDownload);
     $("print-btn").addEventListener("click", onPrint);
     $("clear-btn").addEventListener("click", onClear);
+
+    // Over-quantity inline confirmation controls.
+    if ($("qty-continue")) $("qty-continue").addEventListener("click", async () => {
+      $("qty-confirm").hidden = true;
+      await generatePdf();
+    });
+    if ($("qty-cancel")) $("qty-cancel").addEventListener("click", () => {
+      $("qty-confirm").hidden = true;
+    });
 
     // Start with generation disabled until a valid 18+ DOB is entered.
     $("download-btn").disabled = true;
@@ -252,10 +333,13 @@
       addressLines,
       jurisdiction: v("jurisdiction"),
       prescriptionNo: v("prescriptionNo"),
-      medication: v("medication"),
-      dose: v("dose"),
-      quantity: v("quantity"),
-      destination: v("destination"),
+      medication: buildProduct(),
+      quantity: [v("quantityNum"), v("quantityUnit")].filter(Boolean).join(" "),
+      destination: (function () {
+        const country = v("destinationCountry");
+        const city = v("destinationCity");
+        return city ? `${country} (${city})` : country;
+      })(),
       departureDate: formatDate(v("departureDate")),
       returnDate: formatDate(v("returnDate")),
       issueDate: todayFormatted(),
@@ -340,15 +424,18 @@
         discHtml;
     }
 
-    // Validity box: issue date + travel validity window.
-    const validityBits = [];
-    validityBits.push(`<p><strong>Issued:</strong> ${esc(d.issueDate)}</p>`);
-    if (d.departureDate || d.returnDate) {
-      validityBits.push(
-        `<p><strong>Intended travel:</strong> ${esc(d.departureDate || "[departure]")} ` +
-        `to ${esc(d.returnDate || "[return]")}. This letter relates to that travel period only.</p>`
-      );
-    }
+    // Validity box: issue date, travel window, and an auto-calculated expiry
+    // (return date + configurable buffer) so officials can see validity at a glance.
+    const retIso = ($("returnDate") && $("returnDate").value) || "";
+    const bufferDays = (CONFIG.letter && CONFIG.letter.expiryBufferDays) || 0;
+    const expiryStr = addDaysFormatted(retIso, bufferDays);
+    const validityBits = [
+      `<p><strong>Issue date:</strong> ${esc(d.issueDate)}</p>`,
+      `<p><strong>Travel start:</strong> ${esc(d.departureDate || "[departure]")}</p>`,
+      `<p><strong>Travel end:</strong> ${esc(d.returnDate || "[return]")}</p>`,
+      `<p><strong>Letter expires:</strong> ${esc(expiryStr || "[expiry]")}</p>`,
+      `<p>This letter is valid for the travel period above and expires on the date shown.</p>`,
+    ];
     $("letter-validity").innerHTML = validityBits.join("");
 
     // Closing + signature block
@@ -359,6 +446,44 @@
     $("sign-name").textContent = care.doctor.name;
     $("sign-title").textContent = care.doctor.title;
     $("sign-gmc").textContent = care.doctor.gmc ? `GMC: ${care.doctor.gmc}` : "";
+
+    updateFormHints(d);
+  }
+
+  // Soft, non-blocking guidance shown beside the form fields.
+  function updateFormHints(d) {
+    // Live preview of the assembled product name.
+    if ($("product-preview")) $("product-preview").textContent = d.medication || "-";
+
+    // Strength format nudge (never blocks).
+    const sEl = $("prodStrength"), sHint = $("strength-hint");
+    if (sEl && sHint) {
+      const sv = sEl.value.trim();
+      if (sv && !STRENGTH_RE.test(sv)) {
+        sHint.textContent = "Strength usually looks like T20 or T25:C25. You can still continue.";
+        sHint.hidden = false;
+      } else { sHint.hidden = true; }
+    }
+
+    // Quantity soft warning; also clears any stale over-quantity prompt.
+    const qEl = $("quantityNum"), uEl = $("quantityUnit"), qWarn = $("quantity-warn");
+    if (qWarn) {
+      if (quantityOverThreshold()) {
+        qWarn.textContent = "This quantity is unusually large. Please double-check it is correct.";
+        qWarn.hidden = false;
+      } else {
+        qWarn.hidden = true;
+        if ($("qty-confirm")) $("qty-confirm").hidden = true;
+      }
+    }
+  }
+
+  // True when the entered quantity exceeds the configured per-unit threshold.
+  function quantityOverThreshold() {
+    const n = parseInt(($("quantityNum") && $("quantityNum").value) || "", 10);
+    const unit = ($("quantityUnit") && $("quantityUnit").value) || "";
+    const t = CONFIG.quantity && CONFIG.quantity.warnAbove ? CONFIG.quantity.warnAbove[unit] : undefined;
+    return Number.isFinite(n) && t != null && n > t;
   }
 
   /* ------------------------------ actions ------------------------------- */
@@ -374,6 +499,17 @@
     renderPreview();
     if (!validateForm()) { setStatus("Please complete all fields first."); return; }
 
+    // Unusually large quantity: ask for an explicit confirmation (inline, no
+    // native dialog) before generating. Continue is wired in initForm.
+    if (quantityOverThreshold()) {
+      if ($("qty-confirm")) $("qty-confirm").hidden = false;
+      setStatus("Please confirm the quantity before downloading.");
+      return;
+    }
+    await generatePdf();
+  }
+
+  async function generatePdf() {
     const btn = $("download-btn");
     const original = btn.textContent;
     btn.disabled = true;
@@ -434,9 +570,9 @@
 
   function onClear() {
     $("letter-form").reset();
-    // Re-select the disabled placeholder in the dropdown.
-    const sel = $("jurisdiction");
-    if (sel) sel.selectedIndex = 0;
+    // Re-select the disabled placeholder in the dropdowns.
+    ["jurisdiction", "prodForm"].forEach(id => { const s = $(id); if (s) s.selectedIndex = 0; });
+    if ($("qty-confirm")) $("qty-confirm").hidden = true;
     renderPreview();
   }
 
